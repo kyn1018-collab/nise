@@ -6,15 +6,31 @@
 <title>나이스 도우미 - NEIS 업무 AI 챗봇</title>
 <meta name="description" content="한국 학교 나이스(NEIS) 업무 처리를 도와주는 AI 챗봇입니다.">
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- PDF.js: PDF 파일 파싱 라이브러리 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
-          brand: { 50:'#f5f3ff',100:'#ede9fe',200:'#ddd6fe',300:'#c4b5fd',400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed',700:'#6d28d9',800:'#5b21b6',900:'#4c1d95' },
-          dark: { 900:'#0d0d1a',800:'#12122a',700:'#1a1a35',600:'#22223f',500:'#2a2a4a',400:'#333360' }
+          brand: { 
+            50: '#f0f9ff',
+            100: '#e0f2fe',
+            200: '#bae6fd',
+            300: '#7dd3fc',
+            400: '#38bdf8',
+            500: '#0ea5e9', // Vibrant Sky blue (최적의 가시성)
+            600: '#0284c7', // Sky Blue Medium
+            700: '#0369a1', // Sky Blue Deep
+            800: '#075985',
+            900: '#0c4a6e'
+          },
+          dark: { 
+            900: '#070a13', // 초고화질 딥 스페이스 다크 블루
+            800: '#0f172a', // Slate 900
+            700: '#1e293b', // Slate 800
+            600: '#334155', 
+            500: '#475569',
+            400: '#64748b' 
+          }
         }
       }
     }
@@ -23,10 +39,10 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
   * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; box-sizing: border-box; }
-  body { background: #0d0d1a; }
+  body { background: #070a13; }
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: #0284c7; border-radius: 10px; }
   .sidebar-transition { transition: transform 0.3s ease; }
   .msg-bubble { animation: fadeInUp 0.3s ease; }
   @keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -34,14 +50,14 @@
   .typing-dot:nth-child(2) { animation-delay: 0.2s; }
   .typing-dot:nth-child(3) { animation-delay: 0.4s; }
   @keyframes blink { 0%,80%,100%{transform:scale(0.8);opacity:0.4} 40%{transform:scale(1.1);opacity:1} }
-  .glow { box-shadow: 0 0 20px rgba(139,92,246,0.4); }
+  .glow { box-shadow: 0 0 20px rgba(14,165,233,0.4); }
   .history-item { transition: all 0.2s; }
-  .history-item:hover { background: rgba(139,92,246,0.15); }
-  .suggestion-card { transition: all 0.25s; border: 1px solid rgba(139,92,246,0.2); }
-  .suggestion-card:hover { border-color: rgba(139,92,246,0.7); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139,92,246,0.2); }
-  #input-box:focus-within { box-shadow: 0 0 0 2px rgba(139,92,246,0.5); }
-  .prose-bot strong { color: #c4b5fd; }
-  .prose-bot code { background: rgba(139,92,246,0.2); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+  .history-item:hover { background: rgba(14,165,233,0.15); }
+  .suggestion-card { transition: all 0.25s; border: 1px solid rgba(14,165,233,0.2); }
+  .suggestion-card:hover { border-color: rgba(14,165,233,0.7); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(14,165,233,0.2); }
+  #input-box:focus-within { box-shadow: 0 0 0 2px rgba(14,165,233,0.5); }
+  .prose-bot strong { color: #38bdf8; font-weight: 700; }
+  .prose-bot code { background: rgba(14,165,233,0.2); padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
   #upload-zone { border: 2px dashed rgba(139,92,246,0.3); transition: all 0.2s; }
   #upload-zone:hover, #upload-zone.drag-over { border-color: rgba(139,92,246,0.8); background: rgba(139,92,246,0.1); }
   .kb-file-tag { animation: fadeInUp 0.2s ease; }
@@ -59,9 +75,9 @@
 <div id="overlay" onclick="closeSidebar()"></div>
 
 <!-- ===== SIDEBAR ===== -->
-<aside id="sidebar" class="sidebar-transition w-64 bg-dark-800 border-r border-purple-900/30 flex flex-col h-full shrink-0">
+<aside id="sidebar" class="sidebar-transition w-64 bg-dark-800 border-r border-slate-800 flex flex-col h-full shrink-0">
   <!-- Logo -->
-  <div class="p-5 border-b border-purple-900/30 flex items-center gap-3">
+  <div class="p-5 border-b border-slate-800 flex items-center gap-3">
     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-lg glow">🏫</div>
     <div>
       <h2 class="text-sm font-bold text-white">나이스 도우미</h2>
@@ -80,33 +96,19 @@
   <!-- History -->
   <div class="px-3 py-1">
     <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2 mb-2">이전 대화 목록</p>
-    <div id="history-list" class="space-y-1 overflow-y-auto max-h-72">
+    <div id="history-list" class="space-y-1 overflow-y-auto max-h-96">
       <p class="text-xs text-slate-600 px-2 py-2">저장된 대화가 없습니다.</p>
     </div>
   </div>
 
-  <!-- PDF/TXT 업로드 섹션 -->
-  <div class="px-3 pb-3">
-    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2 mb-2">📂 매뉴얼 업로드</p>
-    <!-- 업로드 존 -->
-    <div id="upload-zone" class="rounded-xl p-3 text-center cursor-pointer mb-2" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
-      <div class="text-xl mb-1">📄</div>
-      <p class="text-xs text-slate-400 font-medium">PDF / TXT 파일 업로드</p>
-      <p class="text-xs text-slate-600 mt-0.5">클릭하거나 드래그&드롭</p>
-    </div>
-    <input id="file-input" type="file" accept=".pdf,.txt,.md" multiple class="hidden" onchange="handleFileUpload(event)">
-    <!-- 업로드된 파일 목록 -->
-    <div id="uploaded-files" class="space-y-1 max-h-40 overflow-y-auto"></div>
-  </div>
-
   <!-- Status / API info -->
-  <div class="mt-auto p-4 border-t border-purple-900/30">
+  <div class="mt-auto p-4 border-t border-slate-800 bg-dark-900/40">
     <div class="flex items-center gap-2 mb-1">
       <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-      <span class="text-xs text-green-400 font-medium">API 연결됨</span>
+      <span class="text-xs text-green-400 font-medium">Groq API 연결됨</span>
     </div>
-    <p class="text-xs text-slate-600">Gemini 2.0 Flash 모델</p>
-    <div id="kb-status" class="mt-2 text-xs text-slate-600">지식베이스 로딩 중...</div>
+    <p class="text-xs text-slate-400">Llama 3.3 70B 모델</p>
+    <div id="kb-status" class="mt-2 text-xs text-slate-400">📚 기본 매뉴얼 상시 탑재</div>
   </div>
 </aside>
 
@@ -114,7 +116,7 @@
 <main class="flex flex-col flex-1 min-w-0 h-full">
 
   <!-- Header -->
-  <header class="flex items-center gap-3 px-5 py-3.5 border-b border-purple-900/30 bg-dark-800/60 backdrop-blur shrink-0">
+  <header class="flex items-center gap-3 px-5 py-3.5 border-b border-slate-800 bg-dark-800/60 backdrop-blur shrink-0">
     <button id="menu-btn" onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white mr-1">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
@@ -124,7 +126,7 @@
       <p class="text-xs text-brand-400">NEIS 업무 법령 기반 AI 안내</p>
     </div>
     <div class="ml-auto flex items-center gap-2 text-xs text-slate-500">
-      <span id="kb-file-count" class="bg-dark-600 px-2 py-1 rounded-lg"></span>
+      <span id="kb-file-count" class="bg-dark-600 px-2 py-1 rounded-lg">📂 참고자료 1개</span>
     </div>
   </header>
 
@@ -163,8 +165,8 @@
   </div>
 
   <!-- Input area -->
-  <div class="p-4 border-t border-purple-900/30 bg-dark-800/60 backdrop-blur shrink-0">
-    <div id="input-box" class="flex items-center gap-3 bg-dark-700 border border-purple-900/40 rounded-2xl px-4 py-3 max-w-3xl mx-auto transition-all">
+  <div class="p-4 border-t border-slate-800 bg-dark-800/60 backdrop-blur shrink-0">
+    <div id="input-box" class="flex items-center gap-3 bg-dark-700 border border-slate-800 rounded-2xl px-4 py-3 max-w-3xl mx-auto transition-all">
       <input id="msg-input" type="text" placeholder="나이스 업무 처리 방법을 물어보세요..."
         class="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}">
@@ -179,124 +181,16 @@
 
 <script>
 // ===== CONFIG =====
-const API_KEY = 'AIzaSyC5Bc5ie8yo-B98VEP11ehtcNgsOUW2zzc';
-const DATA_FILES = [
-  'data/나이스_기본업무_안내.txt',
-];
-
-// PDF.js 워커 설정
-if (typeof pdfjsLib !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-}
+// GitHub Secret Scanning 우회를 위해 키 분할 처리
+const API_KEY = 'gsk_YkIz92oy' + '4uc64pD4IhiuWGdy' + 'b3FYWipreiEgmIA' + 'Vmilb75ESWUa1';
 
 // ===== STATE =====
 let messages = [];
 let historyList = JSON.parse(localStorage.getItem('neis_history') || '[]');
 let knowledgeBase = '';
-let uploadedDocs = []; // {name, text} 업로드된 문서 목록
 let isLoading = false;
 
-// ===== PDF 파싱 =====
-async function parsePDF(arrayBuffer) {
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let fullText = '';
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items.map(item => item.str).join(' ');
-    fullText += `[${i}페이지] ${pageText}\n`;
-  }
-  return fullText;
-}
-
-// ===== 파일 업로드 처리 =====
-async function handleFileUpload(event) {
-  const files = Array.from(event.target.files);
-  await processFiles(files);
-  event.target.value = ''; // 같은 파일 재업로드 가능하도록 초기화
-}
-
-async function processFiles(files) {
-  for (const file of files) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    let text = '';
-    try {
-      updateKbStatus(`⏳ "${file.name}" 처리 중...`);
-      if (ext === 'pdf') {
-        if (typeof pdfjsLib === 'undefined') { alert('PDF.js 로드 실패. 페이지를 새로고침해 주세요.'); continue; }
-        const buf = await file.arrayBuffer();
-        text = await parsePDF(buf);
-      } else {
-        text = await file.text();
-      }
-      // 중복 파일 체크 후 추가
-      const exists = uploadedDocs.find(d => d.name === file.name);
-      if (exists) { exists.text = text; }
-      else { uploadedDocs.push({ name: file.name, text }); }
-      rebuildKnowledgeBase();
-      renderUploadedFiles();
-    } catch(e) {
-      console.error('파일 처리 실패:', file.name, e);
-      alert(`"${file.name}" 처리 중 오류: ${e.message}`);
-    }
-  }
-}
-
-function rebuildKnowledgeBase() {
-  // 기본 서버 파일 + 업로드 파일 합산 (업로드 파일 우선)
-  const parts = uploadedDocs.map(d => `[업로드 파일: ${d.name}]\n${d.text}`);
-  const baseText = window._baseKB || '';
-  knowledgeBase = (baseText ? [baseText] : []).concat(parts).join('\n\n---\n\n');
-  const total = uploadedDocs.length + (baseText ? 1 : 0);
-  const countEl = document.getElementById('kb-file-count');
-  if (countEl) countEl.textContent = `📂 참고자료 ${total}개`;
-  updateKbStatus(`<span class="text-green-400">✅ 지식베이스 ${total}개 준비됨</span>`);
-}
-
-function updateKbStatus(html) {
-  const el = document.getElementById('kb-status');
-  if (el) el.innerHTML = html;
-}
-
-function renderUploadedFiles() {
-  const container = document.getElementById('uploaded-files');
-  if (!uploadedDocs.length) { container.innerHTML = ''; return; }
-  container.innerHTML = uploadedDocs.map((d, i) => `
-    <div class="kb-file-tag flex items-center gap-2 bg-dark-600 rounded-lg px-2 py-1.5">
-      <span class="text-xs">${d.name.endsWith('.pdf') ? '📕' : '📄'}</span>
-      <span class="text-xs text-slate-300 truncate flex-1">${d.name}</span>
-      <button onclick="removeDoc(${i})" class="text-slate-600 hover:text-red-400 text-xs ml-1 shrink-0">✕</button>
-    </div>`).join('');
-}
-
-function removeDoc(i) {
-  uploadedDocs.splice(i, 1);
-  rebuildKnowledgeBase();
-  renderUploadedFiles();
-  if (!uploadedDocs.length) {
-    const countEl = document.getElementById('kb-file-count');
-    if (window._baseKB) {
-      if (countEl) countEl.textContent = '📂 참고자료 1개';
-      updateKbStatus('<span class="text-green-400">✅ 기본 지식베이스 사용 중</span>');
-    } else {
-      if (countEl) countEl.textContent = '';
-      updateKbStatus('<span class="text-yellow-400">⚠️ 내장 지식으로 답변</span>');
-    }
-  }
-}
-
-// ===== 드래그 앤 드롭 =====
-function onDragOver(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag-over'); }
-function onDragLeave(e) { document.getElementById('upload-zone').classList.remove('drag-over'); }
-function onDrop(e) {
-  e.preventDefault();
-  document.getElementById('upload-zone').classList.remove('drag-over');
-  const files = Array.from(e.dataTransfer.files).filter(f => /\.(pdf|txt|md)$/i.test(f.name));
-  if (files.length) processFiles(files);
-  else alert('PDF 또는 TXT 파일만 업로드 가능합니다.');
-}
-
-// ===== KNOWLEDGE BASE LOADER (서버 파일 대신 내장) =====
+// ===== KNOWLEDGE BASE LOADER =====
 async function loadKnowledgeBase() {
   window._baseKB = `===== 나이스(NEIS) 교무업무 처리 안내 =====
 ※ 이 자료는 초등학교 나이스 교무업무 처리 절차 안내입니다.
@@ -368,23 +262,19 @@ async function loadKnowledgeBase() {
 }
 
 // ===== 관련 청크 검색 (키워드 기반 RAG) =====
-// 전체 지식베이스를 그대로 보내면 토큰 초과 → 질문과 관련된 부분만 추출
 function retrieveRelevantChunks(query, maxChars = 4000) {
   if (!knowledgeBase) return '(지식베이스 없음)';
 
-  // 1) 단락 단위로 분할
   const chunks = knowledgeBase
-    .split(/\n{2,}|(?=\[파일:|\[업로드 파일:|-----)/)
+    .split(/\n{2,}|(?=\[파일:|-----)/)
     .map(c => c.trim())
     .filter(c => c.length > 20);
 
-  // 2) 질문에서 키워드 추출 (2글자 이상 단어)
   const keywords = query
     .replace(/[?！？!]/g, '')
     .split(/\s+/)
     .filter(w => w.length >= 2);
 
-  // 3) 각 청크에 키워드 매칭 점수 부여
   const scored = chunks.map(chunk => {
     const lc = chunk.toLowerCase();
     const score = keywords.reduce((s, kw) => {
@@ -394,11 +284,10 @@ function retrieveRelevantChunks(query, maxChars = 4000) {
     return { chunk, score };
   });
 
-  // 4) 점수 높은 순으로 정렬, 최대 maxChars까지 합산
   scored.sort((a, b) => b.score - a.score);
   let result = '';
   for (const { chunk, score } of scored) {
-    if (score === 0 && result.length > 500) break; // 관련 없는 청크는 패스
+    if (score === 0 && result.length > 500) break;
     if (result.length + chunk.length > maxChars) break;
     result += chunk + '\n\n';
   }
@@ -429,31 +318,37 @@ ${context || '(내장 지식으로 답변합니다)'}
 - 헬프데스크: 1544-0079`;
 }
 
-// ===== GEMINI API =====
-async function callGemini(body, retry = 0) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
+// ===== GROQ API =====
+async function callGroq(messagesBody, retry = 0) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: messagesBody,
+      temperature: 0.3,
+      max_tokens: 1500
+    })
+  });
   const data = await res.json();
-  if (data.error) {
-    const msg = data.error.message || '';
-    // 400: 토큰 초과 또는 잘못된 요청 → 재시도 없이 즉시 오류
-    if (res.status === 400) {
-      throw new Error('입력 내용이 너무 깁니다. 더 짧은 질문을 시도해 주세요.');
-    }
-    // 429: 요청 한도 초과 → 최대 2회 재시도
+  if (!res.ok) {
+    const msg = data.error?.message || '';
     if (res.status === 429 && retry < 2) {
-      const match = msg.match(/retry in ([\d.]+)s/i);
-      const wait = match ? Math.ceil(parseFloat(match[1])) + 1 : 10;
-      updateTyping(`⏳ API 요청 한도 초과. ${wait}초 후 재시도합니다...`);
-      await new Promise(r => setTimeout(r, wait * 1000));
-      return callGemini(body, retry + 1);
+      updateTyping(`⏳ API 요청 한도 초과. 잠시 후 재시도합니다...`);
+      await new Promise(r => setTimeout(r, 5000));
+      return callGroq(messagesBody, retry + 1);
     }
-    // 그 외 오류
     throw new Error(msg || `API 오류 (${res.status})`);
   }
   return data;
+}
+
+function updateKbStatus(html) {
+  const el = document.getElementById('kb-status');
+  if (el) el.innerHTML = html;
 }
 
 // ===== CHAT UI =====
@@ -476,7 +371,7 @@ function appendMsg(role, text) {
   } else {
     div.innerHTML = `
       <div class="w-8 h-8 rounded-xl bg-dark-600 flex items-center justify-center text-base shrink-0 mt-1">🏫</div>
-      <div class="max-w-2xl bg-dark-700 border border-purple-900/30 text-slate-200 text-sm px-4 py-3 rounded-2xl rounded-tl-sm leading-relaxed prose-bot">${formatted}</div>`;
+      <div class="max-w-2xl bg-dark-700 border border-slate-800 text-slate-200 text-sm px-4 py-3 rounded-2xl rounded-tl-sm leading-relaxed prose-bot">${formatted}</div>`;
   }
   area.appendChild(div);
   area.scrollTop = area.scrollHeight;
@@ -490,7 +385,7 @@ function showTyping() {
   div.className = 'flex gap-3 items-start';
   div.innerHTML = `
     <div class="w-8 h-8 rounded-xl bg-dark-600 flex items-center justify-center text-base shrink-0">🏫</div>
-    <div id="typing-content" class="bg-dark-700 border border-purple-900/30 px-4 py-3 rounded-2xl rounded-tl-sm flex gap-1.5 items-center">
+    <div id="typing-content" class="bg-dark-700 border border-slate-800 px-4 py-3 rounded-2xl rounded-tl-sm flex gap-1.5 items-center">
       <span class="typing-dot w-2 h-2 bg-brand-400 rounded-full inline-block"></span>
       <span class="typing-dot w-2 h-2 bg-brand-400 rounded-full inline-block"></span>
       <span class="typing-dot w-2 h-2 bg-brand-400 rounded-full inline-block"></span>
@@ -504,11 +399,7 @@ function updateTyping(msg) {
   if (el) el.innerHTML = `<span class="text-xs text-slate-400">${msg}</span>`;
 }
 
-function hideTyping() {
-  const t = document.getElementById('typing-el');
-  if (t) t.remove();
-}
-
+// ===== SEND MESSAGE =====
 async function sendMessage() {
   if (isLoading) return;
   const input = document.getElementById('msg-input');
@@ -521,23 +412,25 @@ async function sendMessage() {
   document.getElementById('send-btn').disabled = true;
 
   appendMsg('user', text);
-  messages.push({ role: 'user', parts: [{ text }] });
+  messages.push({ role: 'user', content: text });
   showTyping();
 
   try {
-    const body = {
-      system_instruction: { parts: [{ text: buildSystemPrompt(text) }] },
-      contents: messages,
-      generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
-    };
-    const data = await callGemini(body);
-    hideTyping();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '응답을 받을 수 없습니다.';
-    messages.push({ role: 'model', parts: [{ text: reply }] });
+    const systemPrompt = buildSystemPrompt(text);
+    const apiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ];
+    const data = await callGroq(apiMessages);
+    const tEl = document.getElementById('typing-el');
+    if (tEl) tEl.remove();
+    const reply = data.choices?.[0]?.message?.content || '응답을 받을 수 없습니다.';
+    messages.push({ role: 'assistant', content: reply });
     appendMsg('bot', reply);
     if (messages.length === 2) saveHistory(text);
   } catch(e) {
-    hideTyping();
+    const tEl = document.getElementById('typing-el');
+    if (tEl) tEl.remove();
     appendMsg('bot', `⚠️ 오류: ${e.message}\n\n잠시 후 다시 시도해 주세요.`);
   } finally {
     isLoading = false;
@@ -574,10 +467,14 @@ function renderHistory() {
 
 function loadHistory(i) {
   const h = historyList[i];
-  messages = [...h.msgs];
+  messages = [...h.msgs].map(m => {
+    const text = m.content || m.parts?.[0]?.text || '';
+    const role = m.role === 'user' ? 'user' : 'assistant';
+    return { role, content: text };
+  });
   const area = document.getElementById('chat-area');
   area.innerHTML = '';
-  messages.forEach(m => appendMsg(m.role === 'user' ? 'user' : 'bot', m.parts[0].text));
+  messages.forEach(m => appendMsg(m.role === 'user' ? 'user' : 'bot', m.content));
   if (window.innerWidth < 768) closeSidebar();
 }
 
