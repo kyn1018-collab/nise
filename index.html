@@ -68,6 +68,11 @@
     #overlay.show { display: block; }
   }
 </style>
+<!-- PDF.js 연동 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+</script>
 </head>
 <body class="flex h-screen overflow-hidden text-slate-200">
 
@@ -612,11 +617,59 @@ function closeSidebar() {
   document.getElementById('overlay').classList.remove('show');
 }
 
+// ===== PDF 파싱 및 연동 =====
+async function loadPDFManuals() {
+  const pdfFiles = [
+    'pdfs/2026 학교생활기록부 기재요령(초등학교).pdf',
+    'pdfs/2026 화성오산 초등 상반기 학교생활기록부 업무담당자 역량강화 연수(공유).pdf',
+    'pdfs/2026학년도 학교생활기록부 기재 길라잡이(초등학교).pdf'
+  ];
+  
+  updateKbStatus(`<span class="text-yellow-400 animate-pulse">⏳ PDF 매뉴얼 로딩 및 분석 중...</span>`);
+  let extractedText = '\n\n===== PDF 매뉴얼 내용 =====\n';
+  let loadedCount = 0;
+
+  for (const file of pdfFiles) {
+    try {
+      const loadingTask = pdfjsLib.getDocument(file);
+      const pdf = await loadingTask.promise;
+      
+      let fullText = '';
+      // 페이지가 많아 브라우저가 멈추는 것을 방지하기 위해 각 페이지마다 잠시 대기
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+        if (i % 10 === 0) await new Promise(r => setTimeout(r, 10)); // UI 블로킹 방지
+      }
+      extractedText += `\n[파일: ${file.replace('pdfs/', '')}]\n` + fullText;
+      loadedCount++;
+    } catch (e) {
+      console.error(`PDF 로드 실패 (${file}):`, e);
+    }
+  }
+
+  if (loadedCount > 0) {
+    knowledgeBase += extractedText;
+    updateKbStatus(`<span class="text-green-400">✅ 매뉴얼 내장 및 PDF 연동 완료 (${loadedCount}개)</span>`);
+    const countEl = document.getElementById('kb-file-count');
+    if (countEl) countEl.textContent = `📂 매뉴얼 연동됨 (PDF ${loadedCount}개 포함)`;
+  } else {
+    updateKbStatus(`<span class="text-green-400">✅ 매뉴얼 내장 완료 (PDF 제외)</span>`);
+  }
+}
+
 // ===== INIT =====
 window.onload = async () => {
   renderHistory();
   await loadKnowledgeBase();
   document.getElementById('msg-input').focus();
+  
+  // 백그라운드에서 PDF 파일 로드 및 텍스트 추출 (UI 차단 방지)
+  if (window.pdfjsLib) {
+    loadPDFManuals();
+  }
 };
 </script>
 </body>
