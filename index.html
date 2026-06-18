@@ -608,9 +608,18 @@ async function sendMessage() {
       reply = data.choices?.[0]?.message?.content || '';
     } catch (groqErr) {
       console.warn("Groq API 실패, Gemini API로 우회합니다:", groqErr);
-      updateTyping('⏳ Groq 한도 초과. Gemini 백업 서버 연결 중...');
-      const data = await callGemini(systemPrompt, messages);
-      reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY) {
+        try {
+          updateTyping('⏳ Groq 한도 초과. Gemini 백업 서버 연결 중...');
+          const data = await callGemini(systemPrompt, messages);
+          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        } catch (geminiErr) {
+          console.error("Gemini API 실패:", geminiErr);
+          throw new Error("서버 요청 한도를 초과하여 구글 백업 AI(Gemini)로 우회를 시도했으나 오류가 발생했습니다.\n\n[구글 API 오류]: " + geminiErr.message + "\n\n💡 해결책: 제공해주신 구글 API 키가 'AI Studio(https://aistudio.google.com/)'에서 발급받은 'Generative Language API(Gemini)' 전용 키가 맞는지 확인해 주세요. (기타 Google Maps나 Firebase 전용 키의 경우 작동하지 않습니다.)");
+        }
+      } else {
+        throw new Error("현재 Groq AI 서비스 요청 한도를 초과했습니다. 10~20초 후 다시 시도해 주세요.");
+      }
     }
 
     const tEl = document.getElementById('typing-el');
