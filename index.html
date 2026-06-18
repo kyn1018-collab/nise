@@ -361,7 +361,7 @@ async function loadKnowledgeBase() {
 }
 
 // ===== 관련 청크 검색 (키워드 기반 RAG) =====
-function retrieveRelevantChunks(query, maxChars = 7000) {
+function retrieveRelevantChunks(query, maxChars = 3500) {
   if (!knowledgeBase) return '(지식베이스 없음)';
 
   const chunks = knowledgeBase
@@ -369,28 +369,71 @@ function retrieveRelevantChunks(query, maxChars = 7000) {
     .map(c => c.trim())
     .filter(c => c.length > 20);
 
-  const keywords = query
-    .replace(/[?！？!]/g, '')
+  const rawTokens = query
+    .replace(/[?！？!,./~`@#$%^&*()_+={}\[\]|\\:;"'<>-]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length >= 2);
+    .map(w => w.trim())
+    .filter(w => w.length > 0);
+
+  const keywords = new Set();
+  
+  rawTokens.forEach(token => {
+    if (token.length >= 2) {
+      keywords.add(token.toLowerCase());
+      
+      if (token.length > 2) {
+        const base = token.replace(/(은|는|이|가|을|를|의|에|에서|로|으로|과|와|도|에서|까지|사항|에대해|대해서)$/, '');
+        if (base.length >= 2) {
+          keywords.add(base.toLowerCase());
+        }
+      }
+      
+      if (token.length >= 4) {
+        const half = Math.floor(token.length / 2);
+        const part1 = token.substring(0, half);
+        const part2 = token.substring(half);
+        if (part1.length >= 2) keywords.add(part1.toLowerCase());
+        if (part2.length >= 2) keywords.add(part2.toLowerCase());
+      }
+    } else if (token.length === 1 && /\d/.test(token)) {
+      keywords.add(token);
+    }
+  });
+
+  const keywordList = Array.from(keywords);
 
   const scored = chunks.map(chunk => {
     const lc = chunk.toLowerCase();
-    const score = keywords.reduce((s, kw) => {
-      const count = (lc.match(new RegExp(kw.toLowerCase(), 'g')) || []).length;
-      return s + count;
-    }, 0);
+    const noSpaceLc = lc.replace(/\s+/g, '');
+    let score = 0;
+    
+    keywordList.forEach(kw => {
+      const count = (lc.match(new RegExp(escapeRegExp(kw), 'g')) || []).length;
+      score += count * 2;
+      
+      const kwNoSpace = kw.replace(/\s+/g, '');
+      if (kwNoSpace.length >= 2) {
+        const countNoSpace = (noSpaceLc.match(new RegExp(escapeRegExp(kwNoSpace), 'g')) || []).length;
+        const diff = Math.max(0, countNoSpace - count);
+        score += diff * 1;
+      }
+    });
     return { chunk, score };
   });
 
   scored.sort((a, b) => b.score - a.score);
+  
   let result = '';
-  // 만약 일치하는 키워드가 없더라도(전체 score=0), 최대한 많은 컨텍스트를 제공하도록 제한을 풉니다.
-  for (const { chunk } of scored) {
+  for (const { chunk, score } of scored) {
+    if (score === 0) continue;
     if (result.length + chunk.length > maxChars) break;
     result += chunk + '\n\n';
   }
   return result.trim() || knowledgeBase.substring(0, maxChars);
+}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function buildSystemPrompt(query = '') {
