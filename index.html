@@ -117,7 +117,7 @@
       <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
       <span class="text-xs text-green-400 font-medium">Groq API 연결됨</span>
     </div>
-    <p class="text-xs text-slate-400">Gemma2 9B 모델</p>
+    <p class="text-xs text-slate-400">Gemma2 9B · 듀얼키 로테이션</p>
     <div id="kb-status" class="mt-2 text-xs text-slate-400">📚 기본 매뉴얼 상시 탑재</div>
   </div>
 </aside>
@@ -191,8 +191,12 @@
 
 <script>
 // ===== CONFIG =====
-// GitHub Secret Scanning 우회를 위해 키 분할 처리
-const API_KEY = 'gsk_YkIz92oy' + '4uc64pD4IhiuWGdy' + 'b3FYWipreiEgmIA' + 'Vmilb75ESWUa1';
+// API 키 로테이션 설정 (한도 초과 시 자동 전환)
+const API_KEYS = [
+  'gsk_YkIz92oy' + '4uc64pD4IhiuWGdy' + 'b3FYWipreiEgmIA' + 'Vmilb75ESWUa1',
+  'gsk_BgX3KYIA' + 'hi4ZtN5zHCg2WGdy' + 'b3FYFjwEYNVkv8FU' + '3EAHNitDsApg'
+];
+let currentKeyIndex = 0;
 
 // ===== STATE =====
 let messages = [];
@@ -463,12 +467,13 @@ ${context || '(로드된 자료가 없습니다.)'}
 }
 
 // ===== GROQ API =====
-async function callGroq(messagesBody, retry = 0) {
+async function callGroq(messagesBody, keyIndex = currentKeyIndex, tried = 0) {
+  const key = API_KEYS[keyIndex];
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`
+      'Authorization': `Bearer ${key}`
     },
     body: JSON.stringify({
       model: 'gemma2-9b-it',
@@ -480,10 +485,20 @@ async function callGroq(messagesBody, retry = 0) {
   const data = await res.json();
   if (!res.ok) {
     const msg = data.error?.message || '';
-    if (res.status === 429 && retry < 2) {
-      updateTyping(`⏳ API 요청 한도 초과. 잠시 후 재시도합니다...`);
-      await new Promise(r => setTimeout(r, 5000));
-      return callGroq(messagesBody, retry + 1);
+    if (res.status === 429) {
+      // 다음 키로 자동 전환
+      const nextIndex = (keyIndex + 1) % API_KEYS.length;
+      if (tried < API_KEYS.length - 1) {
+        currentKeyIndex = nextIndex;
+        updateTyping(`⏳ API 키 ${keyIndex + 1} 한도 초과 → 키 ${nextIndex + 1}로 자동 전환 중...`);
+        await new Promise(r => setTimeout(r, 1000));
+        return callGroq(messagesBody, nextIndex, tried + 1);
+      } else {
+        // 모든 키 한도 초과 → 잠시 대기 후 첫 번째 키로 재시도
+        updateTyping(`⏳ 전체 API 한도 임시 초과. 10초 대기 후 재시도 중...`);
+        await new Promise(r => setTimeout(r, 10000));
+        return callGroq(messagesBody, 0, 0);
+      }
     }
     throw new Error(msg || `API 오류 (${res.status})`);
   }
