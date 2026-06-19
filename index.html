@@ -115,9 +115,9 @@
   <div class="mt-auto p-4 border-t border-slate-800 bg-dark-900/40">
     <div class="flex items-center gap-2 mb-1">
       <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-      <span class="text-xs text-green-400 font-medium">하이브리드 AI 작동 중</span>
+      <span class="text-xs text-green-400 font-medium">Groq API 연결됨</span>
     </div>
-    <p class="text-xs text-slate-400">Gemma2 / Gemini Flash 연동</p>
+    <p class="text-xs text-slate-400">Gemma2 9B 모델</p>
     <div id="kb-status" class="mt-2 text-xs text-slate-400">📚 기본 매뉴얼 상시 탑재</div>
   </div>
 </aside>
@@ -193,7 +193,6 @@
 // ===== CONFIG =====
 // GitHub Secret Scanning 우회를 위해 키 분할 처리
 const API_KEY = 'gsk_YkIz92oy' + '4uc64pD4IhiuWGdy' + 'b3FYWipreiEgmIA' + 'Vmilb75ESWUa1';
-const GEMINI_API_KEY = 'AIzaSyAd' + 'kg8mZJqADl5FJ7' + 'IqhiBmd2dPtdGE954';
 
 // ===== STATE =====
 let messages = [];
@@ -491,39 +490,6 @@ async function callGroq(messagesBody, retry = 0) {
   return data;
 }
 
-// ===== GEMINI API =====
-async function callGemini(systemPrompt, userMessages) {
-  const contents = userMessages.map(m => {
-    return {
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    };
-  });
-
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      contents: contents,
-      systemInstruction: {
-        parts: [{ text: systemPrompt }]
-      },
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 1500
-      }
-    })
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    const msg = data.error?.message || `Gemini API 오류 (${res.status})`;
-    throw new Error(msg);
-  }
-  return data;
-}
 
 function updateKbStatus(html) {
   const el = document.getElementById('kb-status');
@@ -600,27 +566,9 @@ async function sendMessage() {
       { role: 'system', content: systemPrompt },
       ...messages
     ];
-    
-    let reply = '';
-    try {
-      updateTyping('🤖 Groq AI 분석 중...');
-      const data = await callGroq(apiMessages);
-      reply = data.choices?.[0]?.message?.content || '';
-    } catch (groqErr) {
-      console.warn("Groq API 실패, Gemini API로 우회합니다:", groqErr);
-      if (typeof GEMINI_API_KEY !== 'undefined' && GEMINI_API_KEY) {
-        try {
-          updateTyping('⏳ Groq 한도 초과. Gemini 백업 서버 연결 중...');
-          const data = await callGemini(systemPrompt, messages);
-          reply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        } catch (geminiErr) {
-          console.error("Gemini API 실패:", geminiErr);
-          throw new Error("서버 요청 한도를 초과하여 구글 백업 AI(Gemini)로 우회를 시도했으나 오류가 발생했습니다.\n\n[구글 API 오류]: " + geminiErr.message + "\n\n💡 해결책: 제공해주신 구글 API 키가 'AI Studio(https://aistudio.google.com/)'에서 발급받은 'Generative Language API(Gemini)' 전용 키가 맞는지 확인해 주세요. (기타 Google Maps나 Firebase 전용 키의 경우 작동하지 않습니다.)");
-        }
-      } else {
-        throw new Error("현재 Groq AI 서비스 요청 한도를 초과했습니다. 10~20초 후 다시 시도해 주세요.");
-      }
-    }
+    updateTyping('🤖 AI 분석 중...');
+    const data = await callGroq(apiMessages);
+    let reply = data.choices?.[0]?.message?.content || '';
 
     const tEl = document.getElementById('typing-el');
     if (tEl) tEl.remove();
