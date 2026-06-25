@@ -475,7 +475,7 @@ async function callGroq(messagesBody, keyIndex = currentKeyIndex, tried = 0) {
       'Authorization': `Bearer ${key}`
     },
     body: JSON.stringify({
-      model: 'gemma2-9b-it',
+      model: 'llama-3.3-70b-versatile',
       messages: messagesBody,
       temperature: 0.3,
       max_tokens: 1500
